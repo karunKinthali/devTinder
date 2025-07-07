@@ -1,0 +1,11 @@
+const userAuth = (req, res,next) => {
+    const token = req.query.token;
+    if (token === "xyz") {
+        next();
+    }
+    else {
+        res.status(400).send("user not autorised")
+    }
+}
+
+module.exports = userAuth
