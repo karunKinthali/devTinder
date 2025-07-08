@@ -50,17 +50,76 @@ app.delete("/deleteUser", async (req, res) => {
   res.send(`User "${userId}" deleted successfully`);
 })
 
-app.patch("/updateUser", async (req, res) => {
+app.patch("/updateUserById", async (req, res) => {
   const userId = req.body.userId;
   const data = req.body;
-  const user = await User.findByIdAndUpdate(userId, data, { returnDocument: "before" });
-  console.log(user)
-  res.send({
-    "message": "üser updated successfully",
-    "before update": user
+  try {
+    const fieldsNotAllowed = ["emailId"];
+    const notAllowed = Object.keys(data).some((k) => fieldsNotAllowed.includes(k));
+    if (notAllowed) {
+      throw new Error("Fields in the payload can't be updated");
+    }
+    if (data.skills.length > 10) {
+      throw new Error("Maximum of 10 skills allowed");
+    }
+    const user = await User.findByIdAndUpdate(userId, data, { runValidators: true, returnDocument: "before" });
+    console.log(user)
+    res.send({
+      "message": "üser updated successfully",
+      "before update": user
+    }
+    )
   }
-  )
+  catch (err) {
+    res.status(400).send(err.message)
+  }
 })
+// app.patch("/updateUserById", async (req, res) => {
+//   const userId = req.body.userId;
+//   const data = req.body;
+
+//   try {
+//     const fieldsNotAllowed = ["emailId"];
+//     const notAllowed = Object.keys(data).some((k) => fieldsNotAllowed.includes(k)); // Use some instead of every
+
+//     if (notAllowed) {
+//       console.log("if block");
+//       throw new Error("Fields in the payload can't be updated");
+//     }
+
+//     const user = await User.findByIdAndUpdate(userId, data, { runValidators: true, returnDocument: "after" }); // Use returnDocument: "after" to return the updated document
+
+//     if (!user) {
+//       return res.status(404).send({ message: "User not found" });
+//     }
+
+//     console.log(user);
+//     res.send({
+//       message: "User updated successfully",
+//       "before update": user
+//     });
+//   } catch (err) {
+//     console.log("catch block");
+//     res.status(400).send({ message: err.message });
+//   }
+// });
+
+
+app.patch("/updateUserByEmail", async (req, res) => {
+  const { emailId } = req.body.emailId;
+  const data = req.body;
+  try {
+    user = await User.findOneAndUpdate(emailId, data, { runValidators: true, returnDocument: 'before' })
+    res.send({
+      "message": "üser updated successfully",
+      "before update": user
+    });
+  }
+  catch (err) {
+    res.status(400).send(err)
+  }
+})
+
 
 dbConnection()
   .then(() => {
