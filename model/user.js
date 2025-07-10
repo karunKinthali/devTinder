@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
+const validator = require('validator')
 
 const userSchema =
     new mongoose.Schema({
@@ -39,14 +40,24 @@ const userSchema =
         },
         photoUrl: {
             type: String,
-            default: "https://images.app.goo.gl/SESr8LGZbPu7B6Rq9"
+            default: "https://images.app.goo.gl/SESr8LGZbPu7B6Rq9",
+            validate(value) {
+                if (!validator.isURL(value)) {
+                    throw new Error("Please enter a valid photo URL")
+                }
+            }
         },
         about: {
             type: String,
             default: "This is a default description of the user"
         },
         skills: {
-            type: [String]
+            type: [String],
+            validate(value) {
+                if (value.length > 10) {
+                    throw new Error("Only 10 skills allowed ")
+                }
+            }
         }
     }, {
         timestamps: true

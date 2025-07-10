@@ -3,23 +3,41 @@ const authRouter = express.Router();
 const bcrypt = require('bcrypt')
 const validator = require('validator');
 
-const validateSignUp = require('../utils/validateSignUp')
+const { validateSignUp } = require('../utils/validation')
 
 const User = require('../model/user');
 
 
 authRouter.post("/signup", async (req, res) => {
-    validateSignUp(req);
-    const { firstName, lastName, emailId, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
     try {
-        const user = new User({ firstName, lastName, emailId, password: hashedPassword });
+        await validateSignUp(req);
+        const { firstName, lastName, emailId, password, age, gender, skills } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = new User({ firstName, lastName, emailId, password: hashedPassword, age, gender, skills });
         await user.save();
         res.send(`User ${user.firstName.toUpperCase()} saved successfully`);
     } catch (err) {
         res.status(400).send("Error while saving the data:" + err.message)
     }
 });
+
+
+// authRouter.post("/signup", async (req, res) => {
+//     try {
+//         validateSignUp(req);
+//         const { firstName, lastName, emailId, password } = req.body;
+//         const hashedPassword = await bcrypt.hash(password, 10);
+//         const user = new User({ firstName, lastName, emailId, password: hashedPassword });
+//         await user.save();
+//         res.send(`User ${user.firstName.toUpperCase()} saved successfully`);
+//     } catch (err) {
+//         console.error("Signup error:", err.message);
+//         res.status(400).send("Error while saving the data: " + err.message);
+//     }
+// });
+
+module.exports = authRouter;
+
 
 authRouter.post("/login", async (req, res) => {
     try {
@@ -47,5 +65,11 @@ authRouter.post("/login", async (req, res) => {
         res.status(400).send(error.message);
     }
 });
+
+authRouter.post("/logout", (req, res) => {
+    res
+        .cookie('token', null, { expires: new Date(Date.now()) })
+        .send("You have been logged out successfully")
+})
 
 module.exports = { authRouter }
