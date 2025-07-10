@@ -1,23 +1,86 @@
 const express = require('express');
 const dbConnection = require("./config/dbConnection")
 const User = require('./model/user');
+const validateSignUp = require('./utils/validateSignUp')
 const { default: mongoose } = require('mongoose');
+const bcrypt = require('bcrypt')
+const validator = require('validator');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken')
 
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser())
 
 
 app.post("/signup", async (req, res) => {
-  console.log(req.body)
-  const user = new User(req.body);
+  validateSignUp(req);
+  const { firstName, lastName, emailId, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  console.log(hashedPassword)
+
   try {
+    const user = new User({ firstName, lastName, emailId, password: hashedPassword });
     await user.save();
     res.send(`User ${user.firstName.toUpperCase()} saved successfully`);
   } catch (err) {
-    res.status(400).send("error while saving the data:" + err.message)
+    res.status(400).send("Error while saving the data:" + err.message)
   }
 })
+
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+
+    if (!validator.isEmail(emailId)) {
+      throw new Error("Invalid email format");
+    }
+
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      throw new Error("Invalid credentials");
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      throw new Error("Invalid credentials");
+    }
+    else {
+      const id = user._id;
+      const cookie = jwt.sign({ id }, 'Karun@123')
+      res.cookie('token', cookie)
+      res.status(200).send("Logged in successfully");
+    }
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+});
+
+app.get("/profile", async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      throw new Error("Token missing. Please login again.");
+    }
+
+    const decoded = jwt.verify(token, 'Karun@123');
+    if (!decoded || !decoded.id) {
+      throw new Error("Invalid token. Please login again.");
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    res.status(200).send(user);
+  } catch (err) {
+    console.error("Profile error:", err.message);
+    res.status(400).send(err.message);
+  }
+});
+
 
 app.get("/user", async (req, res) => {
   try {
@@ -27,28 +90,28 @@ app.get("/user", async (req, res) => {
       res.send(user);
     }
     else {
-      res.status(404).send("user not found")
+      res.status(404).send("User not found")
     }
   }
   catch (err) {
     res.send("Unexpcted error" + err);
   }
-})
+});
 
 app.get("/feed", async (req, res) => {
   try {
     const users = await User.find({});
     res.send(users);
   } catch (error) {
-    res.send(400, "something went wrong")
+    res.send(400, "Something went wrong")
   }
-})
+});
 
 app.delete("/deleteUser", async (req, res) => {
   const userId = req.body.userId
   const user = await User.findByIdAndDelete(userId);
   res.send(`User "${userId}" deleted successfully`);
-})
+});
 
 app.patch("/updateUserById", async (req, res) => {
   const userId = req.body.userId;
@@ -65,15 +128,15 @@ app.patch("/updateUserById", async (req, res) => {
     const user = await User.findByIdAndUpdate(userId, data, { runValidators: true, returnDocument: "before" });
     console.log(user)
     res.send({
-      "message": "üser updated successfully",
-      "before update": user
+      "message": "User updated successfully",
+      "Before update": user
     }
     )
   }
   catch (err) {
     res.status(400).send(err.message)
   }
-})
+});
 // app.patch("/updateUserById", async (req, res) => {
 //   const userId = req.body.userId;
 //   const data = req.body;
@@ -111,14 +174,14 @@ app.patch("/updateUserByEmail", async (req, res) => {
   try {
     user = await User.findOneAndUpdate(emailId, data, { runValidators: true, returnDocument: 'before' })
     res.send({
-      "message": "üser updated successfully",
+      "message": "User updated successfully",
       "before update": user
     });
   }
   catch (err) {
     res.status(400).send(err)
   }
-})
+});
 
 
 dbConnection()
@@ -129,4 +192,4 @@ dbConnection()
     })
   }).catch((err) => {
     console.error(err.message)
-  })
+  });
