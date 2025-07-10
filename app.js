@@ -2,12 +2,11 @@ const express = require('express');
 const dbConnection = require("./config/dbConnection")
 const User = require('./model/user');
 const validateSignUp = require('./utils/validateSignUp')
-const { default: mongoose } = require('mongoose');
 const bcrypt = require('bcrypt')
 const validator = require('validator');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken')
-
+const userAuth = require('./middleware/userAuth')
 const app = express();
 
 app.use(express.json());
@@ -18,8 +17,6 @@ app.post("/signup", async (req, res) => {
   validateSignUp(req);
   const { firstName, lastName, emailId, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
-  console.log(hashedPassword)
-
   try {
     const user = new User({ firstName, lastName, emailId, password: hashedPassword });
     await user.save();
@@ -42,38 +39,37 @@ app.post("/login", async (req, res) => {
       throw new Error("Invalid credentials");
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await user.getBcrypt(password);
+
     if (!isValidPassword) {
       throw new Error("Invalid credentials");
     }
-    else {
-      const id = user._id;
-      const cookie = jwt.sign({ id }, 'Karun@123')
-      res.cookie('token', cookie)
-      res.status(200).send("Logged in successfully");
-    }
+
+    const jwtToken = await user.getJWT();
+    res.cookie('token', jwtToken, { expires: new Date(Date.now() + 1 * 3600000) })
+    res.status(200).send("Logged in successfully");
   } catch (error) {
     res.status(400).send(error.message);
   }
 });
 
-app.get("/profile", async (req, res) => {
+app.get("/profile", userAuth, async (req, res) => {
   try {
-    const token = req.cookies.token;
-    if (!token) {
-      throw new Error("Token missing. Please login again.");
-    }
+    // const token = req.cookies.token;
+    // if (!token) {
+    //   throw new Error("Token missing. Please login again.");
+    // }
 
-    const decoded = jwt.verify(token, 'Karun@123');
-    if (!decoded || !decoded.id) {
-      throw new Error("Invalid token. Please login again.");
-    }
+    // const decoded = jwt.verify(token, 'Karun@123');
+    // if (!decoded || !decoded.id) {
+    //   throw new Error("Invalid token. Please login again.");
+    // }
 
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      throw new Error("User not found.");
-    }
-
+    // const user = await User.findById(decoded.id);
+    // if (!user) {
+    //   throw new Error("User not found.");
+    // }
+    const user = req.user;
     res.status(200).send(user);
   } catch (err) {
     console.error("Profile error:", err.message);
@@ -81,6 +77,10 @@ app.get("/profile", async (req, res) => {
   }
 });
 
+app.post("/sendConnectionRequest", userAuth, (req, res) => {
+  console.log("Entered to sendConnectionRequest");
+  res.send("sendConnectionRequest");
+})
 
 app.get("/user", async (req, res) => {
   try {
