@@ -14,8 +14,13 @@ authRouter.post("/signup", async (req, res) => {
         const { firstName, lastName, emailId, password, age, gender, skills } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = new User({ firstName, lastName, emailId, password: hashedPassword, age, gender, skills });
-        await user.save();
-        res.send(`User ${user.firstName.toUpperCase()} saved successfully`);
+        const savedUser = await user.save();
+        const jwtToken = await user.getJWT();
+        res.cookie('token', jwtToken, { expires: new Date(Date.now() + 1 * 3600000) })
+        res.json({
+            message: "User saved successfully",
+            data: savedUser
+        });
     } catch (err) {
         res.status(400).send("Error while saving the data:" + err.message)
     }
@@ -60,7 +65,7 @@ authRouter.post("/login", async (req, res) => {
 
         const jwtToken = await user.getJWT();
         res.cookie('token', jwtToken, { expires: new Date(Date.now() + 1 * 3600000) })
-        res.status(200).send("Logged in successfully");
+        res.status(200).send(user);
     } catch (error) {
         res.status(400).send(error.message);
     }

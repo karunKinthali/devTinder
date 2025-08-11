@@ -40,7 +40,7 @@ const userSchema =
         },
         photoUrl: {
             type: String,
-            default: "https://images.app.goo.gl/SESr8LGZbPu7B6Rq9",
+            default: "https://i.pinimg.com/236x/2c/47/d5/2c47d5dd5b532f83bb55c4cd6f5bd1ef.jpg",
             validate(value) {
                 if (!validator.isURL(value)) {
                     throw new Error("Please enter a valid photo URL")
